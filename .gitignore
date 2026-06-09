@@ -7,6 +7,7 @@ logs/reports/*
 data/qr_input/*
 data/qr_processed/*
 data/qr_failed/*
+data/qr_application_required/*
 data/qr_content/*
 coords_export/debug_*.png
 !logs/.gitkeep
@@ -15,5 +16,6 @@ coords_export/debug_*.png
 !data/qr_input/.gitkeep
 !data/qr_processed/.gitkeep
 !data/qr_failed/.gitkeep
+!data/qr_application_required/.gitkeep
 !data/qr_content/.gitkeep
 !coords_export/.gitkeep

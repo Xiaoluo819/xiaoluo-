@@ -4,13 +4,13 @@ coords:
     y: 0.8828571428571429
   image:
     x: 0.39556962025316456
-    y: 0.12142857142857143
+    y: 0.1392857142857143
   join_group:
     x: 0.5
     y: 0.8357142857142857
   plus:
-    x: 0.9691455696202531
-    y: 0.06571428571428571
+    x: 0.9533227848101266
+    y: 0.07285714285714286
   scan:
     x: 0.7998417721518988
     y: 0.2667857142857143
@@ -25,6 +25,7 @@ device:
 paths:
   content_log: ./data/qr_content/urls.txt
   failed_dir: ./data/qr_failed
+  application_dir: ./data/qr_application_required
   input_dir: ./data/qr_input
   log_dir: ./logs
   processed_dir: ./data/qr_processed

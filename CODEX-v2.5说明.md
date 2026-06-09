@@ -14,6 +14,7 @@
 - 如果发现“二维码已过期、无法加入、群聊人数已满、操作频繁、请稍后再试”等提示，会判定失败。
 - 如果点完后还停留在“加入群聊”页面，会判定为可疑。
 - 失败或可疑时会自动截图。
+- 如果遇到需要发送入群申请的页面，会跳过并移动到 `data/qr_application_required/`。
 - 每次运行会生成 CSV 和 Markdown 报告。
 - 预览模式也会生成报告，方便先看哪些二维码能识别。
 - 项目内置 macOS ADB：`tools/platform-tools/adb`，新电脑通常不需要再运行 `brew install android-platform-tools`。
@@ -39,6 +40,7 @@ logs/screenshots/
 - `success`：判断为成功。
 - `failed`：明确失败。
 - `suspicious`：结果可疑，需要看截图确认。
+- `application_required`：需要发送入群申请，已跳过并单独归档。
 - `invalid`：图片无法识别二维码。
 - `decoded`：预览模式下二维码可识别，但没有操作手机。
 

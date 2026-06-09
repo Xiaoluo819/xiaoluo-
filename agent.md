@@ -34,6 +34,7 @@ coords_export/           校准坐标导出目录
 data/qr_input/           待处理二维码图片目录
 data/qr_processed/       成功后移动到这里
 data/qr_failed/          失败后移动到这里
+data/qr_application_required/ 需要发送入群申请的图片移动到这里
 data/qr_content/         解码出的群链接记录
 logs/                    日志、报告、失败/可疑截图
 templates/               模板截图目录，当前不强依赖
@@ -123,13 +124,15 @@ rate_limit:
 4. 按配置坐标依次点击微信：`+`、扫一扫、相册、图片、“加入群聊”。
 5. 通过 `uiautomator dump` 读取当前 UI 文本，判断成功、失败或可疑。
 6. 成功图片移动到 `data/qr_processed/`，失败/可疑图片移动到 `data/qr_failed/`。
-7. 写入日志、CSV/Markdown 报告，失败或可疑时截图。
+7. 需要发送入群申请的图片移动到 `data/qr_application_required/`，程序返回微信主界面继续下一张。
+8. 写入日志、CSV/Markdown 报告，失败、可疑或需申请时截图。
 
 状态含义：
 
 - `success`：判断成功。
 - `failed`：明确失败。
 - `suspicious`：结果可疑，需要看截图确认。
+- `application_required`：需要发送入群申请，已跳过并单独归档。
 - `invalid`：图片无法识别二维码。
 - `decoded`：预览模式下二维码可识别，但没有操作手机。
 

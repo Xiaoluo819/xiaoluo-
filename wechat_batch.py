@@ -771,12 +771,38 @@ PENDING_KEYWORDS = [
     "加入该群聊",
 ]
 
+APPLICATION_KEYWORDS = [
+    "发送申请",
+    "申请加入",
+    "申请信息",
+    "申请理由",
+    "入群申请",
+    "填写验证信息",
+    "验证申请",
+    "等待群主",
+    "等待管理员",
+    "群主确认",
+    "管理员确认",
+    "群聊邀请确认",
+]
+
+WECHAT_HOME_KEYWORDS = [
+    "微信",
+    "通讯录",
+    "发现",
+    "我",
+]
+
 
 def judge_join_result(ui_xml: str):
     """根据当前界面文字判断加群结果，返回 (ok, message, ui_text)。"""
     text = _ui_text(ui_xml)
     if not text:
         return None, "无法读取当前界面文字", ""
+
+    for kw in APPLICATION_KEYWORDS:
+        if kw in text:
+            return "application_required", f"需要发送入群申请，已跳过: {kw}", text
 
     for kw in FAILURE_KEYWORDS:
         if kw in text:
@@ -787,6 +813,25 @@ def judge_join_result(ui_xml: str):
             return None, f"仍停留在「{kw}」页面", text
 
     return True, "未发现失败提示，且已离开加入按钮页面", text
+
+
+def looks_like_wechat_home(ui_text: str) -> bool:
+    """粗略判断是否已回到微信底部四栏主页。"""
+    return bool(ui_text) and sum(1 for kw in WECHAT_HOME_KEYWORDS if kw in ui_text) >= 3
+
+
+def return_to_wechat_home(backend: DeviceBackend, max_steps: int = 4) -> bool:
+    """逐步返回，检测到微信主页特征就停止。"""
+    for step in range(1, max_steps + 1):
+        backend.back()
+        time.sleep(0.8)
+        ui_text = _ui_text(backend.dump_ui())
+        if looks_like_wechat_home(ui_text):
+            log.info(f"  ✅ 已返回微信主页 ({step}/{max_steps})")
+            return True
+        log.debug(f"返回后未检测到微信主页 ({step}/{max_steps}): {ui_text[:120]}")
+    log.warning(f"  ⚠️ 已返回 {max_steps} 次，未明确识别微信主页，将继续下一张")
+    return False
 
 
 def save_diagnostic_screenshot(backend: DeviceBackend, image_name: str, config, reason: str):
@@ -867,6 +912,17 @@ def join_group(image_path, group_url, config, backend: DeviceBackend):
     if ok is not True:
         screenshot = save_diagnostic_screenshot(backend, image_path.name, config, msg)
 
+    if ok == "application_required":
+        log.warning(f"  📨 {msg}")
+        log.info("  ↩️ 跳过申请页，返回微信主界面")
+        return_to_wechat_home(backend)
+        return False, msg, {
+            "ui_text": ui_text,
+            "screenshot": screenshot,
+            "group_url": group_url,
+            "status": "application_required",
+        }
+
     log.info("  ↩️ 返回")
     backend.back()
     time.sleep(0.5)
@@ -919,6 +975,7 @@ def write_run_report(report_dir: Path, records: list[dict], dry_run: bool):
     invalid = sum(1 for r in records if r.get("status") == "invalid")
     suspicious = sum(1 for r in records if r.get("status") == "suspicious")
     decoded = sum(1 for r in records if r.get("status") == "decoded")
+    application_required = sum(1 for r in records if r.get("status") == "application_required")
 
     with open(md_path, "w", encoding="utf-8") as f:
         f.write("# 微信批量扫码运行报告\n\n")
@@ -928,6 +985,7 @@ def write_run_report(report_dir: Path, records: list[dict], dry_run: bool):
         f.write(f"- 成功: {success}\n")
         f.write(f"- 失败: {failed}\n")
         f.write(f"- 可疑: {suspicious}\n")
+        f.write(f"- 需申请已跳过: {application_required}\n")
         f.write(f"- 预览可识别: {decoded}\n")
         f.write(f"- 无法解码: {invalid}\n\n")
         f.write("| 文件 | 状态 | 原因 | 截图 |\n")
@@ -949,13 +1007,14 @@ def run_batch(config, backend: DeviceBackend = None):
     inp = _path(p.get("input_dir"), "data/qr_input")
     okd = _path(p.get("processed_dir"), "data/qr_processed")
     bd = _path(p.get("failed_dir"), "data/qr_failed")
+    appd = _path(p.get("application_dir"), "data/qr_application_required")
     cl = _path(p.get("content_log"), "data/qr_content/urls.txt")
     ld = _path(p.get("log_dir"), "logs")
     report_dir = _path(p.get("report_dir"), "logs/reports")
     screenshot_root = _path(p.get("screenshot_dir"), "logs/screenshots")
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     screenshot_dir = screenshot_root / run_id
-    for d in [okd, bd, cl.parent, ld, report_dir, screenshot_dir]:
+    for d in [okd, bd, appd, cl.parent, ld, report_dir, screenshot_dir]:
         d.mkdir(parents=True, exist_ok=True)
     config["_runtime"] = {
         "screenshot_dir": str(screenshot_dir),
@@ -1031,7 +1090,7 @@ def run_batch(config, backend: DeviceBackend = None):
         valid = valid[:remain]
 
     log.info("=" * 50 + f"\n🤖 加群 ({len(valid)} 个)...\n" + "=" * 50)
-    sc, fc = 0, 0
+    sc, fc, ac = 0, 0, 0
     for i, (pth, url) in enumerate(valid, 1):
         log.info(f"\n[{i}/{len(valid)}] {pth.name}")
         ok, msg, meta = join_group(pth, url, config, backend)
@@ -1042,9 +1101,13 @@ def run_batch(config, backend: DeviceBackend = None):
             shutil.move(str(pth), str(okd / pth.name))
         else:
             log.warning(f"  ❌ {msg}")
-            fc += 1
-            status = "failed" if not msg.startswith("结果可疑") else "suspicious"
-            shutil.move(str(pth), str(bd / pth.name))
+            status = meta.get("status") or ("failed" if not msg.startswith("结果可疑") else "suspicious")
+            if status == "application_required":
+                ac += 1
+                shutil.move(str(pth), str(appd / pth.name))
+            else:
+                fc += 1
+                shutil.move(str(pth), str(bd / pth.name))
         records.append({
             "time": datetime.now().isoformat(timespec="seconds"),
             "file": pth.name,
@@ -1054,7 +1117,7 @@ def run_batch(config, backend: DeviceBackend = None):
             "screenshot": meta.get("screenshot", ""),
         })
         if i % r.get("batch_size", 50) == 0 and i < len(valid):
-            log.info(f"\n⏸️  {i}/{len(valid)} ✅{sc} ❌{fc}  按 Enter 继续...")
+            log.info(f"\n⏸️  {i}/{len(valid)} ✅{sc} 📨{ac} ❌{fc}  按 Enter 继续...")
             try:
                 input()
             except (KeyboardInterrupt, EOFError):
@@ -1068,7 +1131,7 @@ def run_batch(config, backend: DeviceBackend = None):
 
     log.info(
         f"\n{'='*50}\n"
-        f"📊 解码:{len(valid)} 加群:✅{sc} ❌{fc} 今日:{get_today_count(ld)}\n"
+        f"📊 解码:{len(valid)} 加群:✅{sc} 📨需申请:{ac} ❌{fc} 今日:{get_today_count(ld)}\n"
         f"{'='*50}"
     )
     csv_path, md_path = write_run_report(report_dir, records, dry)
