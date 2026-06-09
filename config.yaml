@@ -1,0 +1,43 @@
+coords:
+  album:
+    x: 0.8892405063291139
+    y: 0.8828571428571429
+  image:
+    x: 0.39556962025316456
+    y: 0.12142857142857143
+  join_group:
+    x: 0.5
+    y: 0.8357142857142857
+  plus:
+    x: 0.9691455696202531
+    y: 0.06571428571428571
+  scan:
+    x: 0.7998417721518988
+    y: 0.2667857142857143
+  screen_h: 2800
+  screen_w: 1264
+device:
+  emulator_ports:
+  - 7555
+  - 22471
+  - 5555
+  mode: auto
+paths:
+  content_log: ./data/qr_content/urls.txt
+  failed_dir: ./data/qr_failed
+  input_dir: ./data/qr_input
+  log_dir: ./logs
+  processed_dir: ./data/qr_processed
+  report_dir: ./logs/reports
+  screenshot_dir: ./logs/screenshots
+rate_limit:
+  batch_size: 50
+  daily_limit: 150
+  max_interval: 300
+  min_interval: 180
+scan:
+  dry_run: false
+  skip_invalid: true
+ui:
+  join_wait: 3
+  max_wait: 10
